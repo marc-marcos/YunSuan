@@ -18,6 +18,11 @@ class VCrypto extends Module {
   val lo_hi = Wire(UInt(64.W))
   val lo_lo = Wire(UInt(64.W))
 
+  val hi_hi = Wire(UInt(64.W))
+  val hi_lo = Wire(UInt(64.W))
+  val lo_hi = Wire(UInt(64.W))
+  val lo_lo = Wire(UInt(64.W))
+
   // Zvbc vclmul/vclmulh
 
   val hi = Module(new VClmul)
