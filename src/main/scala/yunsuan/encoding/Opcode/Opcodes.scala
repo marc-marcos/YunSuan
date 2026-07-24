@@ -1993,9 +1993,30 @@ object Opcodes {
     private val vclmul_op = bb"001100"
     private val vclmulh_op = bb"001101"
 
+    private val vaes_vv_op = bb"101000"
+    private val vaeskf1_op = bb"100010"
+    private val vaeskf2_op = bb"101010"
+    private val vaesz_op = bb"101001"
+
     private val unused_f5 = bb"00000"
+    private val vaesdm_f5 = bb"00000"
+    private val vaesdf_f5 = bb"00001"
+    private val vaesem_f5 = bb"00010"
+    private val vaesef_f5 = bb"00011"
+    private val vaesz_f5 = bb"00111"
+
+    // Keep every crypto uop at one width. AES round operations preserve vs1/funct5,
+    // which distinguishes operations sharing the same architectural funct6.
     val vclmul = DvSvlS2vS1(vclmul_op, unused_f5, E64)
     val vclmulh = DvSvlS2vS1(vclmulh_op, unused_f5, E64)
+
+    val vaesef = DvSvlS2vS1(vaes_vv_op, vaesef_f5, E32)
+    val vaesem = DvSvlS2vS1(vaes_vv_op, vaesem_f5, E32)
+    val vaesdf = DvSvlS2vS1(vaes_vv_op, vaesdf_f5, E32)
+    val vaesdm = DvSvlS2vS1(vaes_vv_op, vaesdm_f5, E32)
+    val vaeskf1 = DvSvlS2vS1(vaeskf1_op, unused_f5, E32)
+    val vaeskf2 = DvSvlS2vS1(vaeskf2_op, unused_f5, E32)
+    val vaesz = DvSvlS2vS1(vaesz_op, vaesz_f5, E32)
 
     override def getLat(opcode: Opcode): Int = 2
 
