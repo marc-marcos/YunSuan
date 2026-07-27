@@ -4,6 +4,7 @@ package yunsuan.vector.VectorALU
 import chisel3._
 import chisel3.util._
 import yunsuan.vector.v2.Crypto.VClmul
+import yunsuan.vector.v2.Crypto.VAes
 
 class VCrypto extends Module {
   val io = IO(new Bundle {
@@ -12,6 +13,12 @@ class VCrypto extends Module {
   })
 
   val isHigh = io.in.bits.opcode.isVclmulh
+  val isAesZero = io.in.bits.opcode.isVaesz
+  val isAesDf = io.in.bits.opcode.isVaesdf
+  val isAesDm = io.in.bits.opcode.isVaesdm
+  val isAesEf = io.in.bits.opcode.isVaesef
+  val isAesEm = io.in.bits.opcode.isVaesem
+  val isAes = io.in.bits.opcode.isVaesz || io.in.bits.opcode.isVaesdf || io.in.bits.opcode.isVaesdm || io.in.bits.opcode.isVaesef || io.in.bits.opcode.isVaesem
 
   val hi_hi = Wire(UInt(64.W))
   val hi_lo = Wire(UInt(64.W))
@@ -34,7 +41,22 @@ class VCrypto extends Module {
 
   val result = Cat(Mux(isHigh, hi_hi, hi_lo), Mux(isHigh, lo_hi, lo_lo))
 
-  val stage1Result = RegEnable(result, io.in.valid)
+  val aesZeroResult = io.in.bits.old_vd ^ io.in.bits.vs2
+
+  val aes = Module(new VAes)
+  aes.in.valid := io.in.valid
+  aes.in.bits.op.em := isAesEm
+  aes.in.bits.op.ef := isAesEf
+  aes.in.bits.op.dm := isAesDm
+  aes.in.bits.op.df := isAesDf
+  aes.in.bits.vs3 := io.in.bits.old_vd
+  aes.in.bits.vs2 := io.in.bits.vs2
+
+  val aesResult = Mux(!isAesZero, aes.out.vd, aesZeroResult)
+
+  val cryptoResult = Mux(isAes, aesResult, result)
+
+  val stage1Result = RegEnable(cryptoResult, io.in.valid)
   val stage1Valid = RegNext(io.in.valid, false.B)
 
   io.out.bits.vd    := RegEnable(stage1Result, stage1Valid)
@@ -44,14 +66,29 @@ class VCrypto extends Module {
 
 object VCrypto {
   object Opcode {
-    val vclmul  = 0.U(1.W)
-    val vclmulh = 1.U(1.W)
+    val vclmul  = 0.U(4.W)
+    val vclmulh = 1.U(4.W)
+    val vaesz   = 2.U(4.W)
+    val vaesef  = 3.U(4.W)
+    val vaesem  = 4.U(4.W)
+    val vaesdf  = 5.U(4.W)
+    val vaesdm  = 6.U(4.W)
+    val vaeskf1 = 7.U(4.W)
+    val vaeskf2 = 8.U(4.W)
   }
 
   class Opcode extends Bundle {
-    val op = UInt(1.W)
+    val op = UInt(4.W)
 
     def isVclmulh: Bool = op === Opcode.vclmulh
+    def isVclmul: Bool = op === Opcode.vclmul
+    def isVaesef: Bool = op === Opcode.vaesef
+    def isVaesem: Bool = op === Opcode.vaesem
+    def isVaesdf: Bool = op === Opcode.vaesdf
+    def isVaesdm: Bool = op === Opcode.vaesdm
+    def isVaeskf1: Bool = op === Opcode.vaeskf1
+    def isVaeskf2: Bool = op === Opcode.vaeskf2
+    def isVaesz: Bool = op === Opcode.vaesz
   }
 
   class In extends Bundle {
