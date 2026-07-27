@@ -5,19 +5,6 @@ import chisel3._
 import chisel3.util._
 import yunsuan.vector.v2.Crypto.VClmul
 
-class VCryptoInput extends Bundle {
-  val opcode = new VCryptoOpcode
-  val vs1 = UInt(128.W)
-  val vs2 = UInt(128.W)
-  val old_vd = UInt(128.W)
-  val mask = UInt(128.W)
-}
-
-class VCryptoOutput extends Bundle {
-  val vd = UInt(128.W)
-  val vxsat = Bool()
-}
-
 class VCrypto extends Module {
   val io = IO(new Bundle {
     val in = Flipped(ValidIO(new VCrypto.In))
@@ -25,20 +12,6 @@ class VCrypto extends Module {
   })
 
   val isHigh = io.in.bits.opcode.isVclmulh
-
-  val hi_hi = Wire(UInt(64.W))
-  val hi_lo = Wire(UInt(64.W))
-  val lo_hi = Wire(UInt(64.W))
-  val lo_lo = Wire(UInt(64.W))
-
-  when(io.in.valid) {
-    printf("op=0x%x, shifted=0x%x, enc=0x%x, isHigh=%d\n",
-      io.in.bits.opcode.op,
-      (io.in.bits.opcode.op << 7.U),
-      VCryptoOpcode.vclmulh.encode.value.U,
-      isHigh
-    )
-  }
 
   val hi_hi = Wire(UInt(64.W))
   val hi_lo = Wire(UInt(64.W))
@@ -92,4 +65,8 @@ object VCrypto {
     val vd = UInt(128.W)
     val vxsat = Bool()
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> c878943 (change input/output interface of VCrypto module)
