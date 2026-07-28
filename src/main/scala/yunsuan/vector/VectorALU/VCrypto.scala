@@ -14,6 +14,11 @@ class VCrypto extends Module {
 
   val isHigh = io.in.bits.opcode.isVclmulh
   val isAesZero = io.in.bits.opcode.isVaesz
+  val isAesDf = io.in.bits.opcode.isVaesdf
+  val isAesDm = io.in.bits.opcode.isVaesdm
+  val isAesEf = io.in.bits.opcode.isVaesef
+  val isAesEm = io.in.bits.opcode.isVaesem
+  val isAes = io.in.bits.opcode.isVaesz || io.in.bits.opcode.isVaesdf || io.in.bits.opcode.isVaesdm || io.in.bits.opcode.isVaesef || io.in.bits.opcode.isVaesem
 
   val hi_hi = Wire(UInt(64.W))
   val hi_lo = Wire(UInt(64.W))
@@ -36,17 +41,20 @@ class VCrypto extends Module {
 
   val result = Cat(Mux(isHigh, hi_hi, hi_lo), Mux(isHigh, lo_hi, lo_lo))
 
-  // VAESZ is the first AES encryption round without a round key.
+  val aesZeroResult = io.in.bits.old_vd ^ io.in.bits.vs2
+
   val aes = Module(new VAes)
   aes.in.valid := io.in.valid
-  aes.in.bits.op.em := false.B
-  aes.in.bits.op.ef := true.B
-  aes.in.bits.op.dm := false.B
-  aes.in.bits.op.df := false.B
+  aes.in.bits.op.em := isAesEm
+  aes.in.bits.op.ef := isAesEf
+  aes.in.bits.op.dm := isAesDm
+  aes.in.bits.op.df := isAesDf
   aes.in.bits.vs3 := io.in.bits.old_vd
-  aes.in.bits.vs2 := 0.U
+  aes.in.bits.vs2 := io.in.bits.vs2
 
-  val cryptoResult = Mux(isAesZero, aes.out.vd, result)
+  val aesResult = Mux(!isAesZero, aes.out.vd, aesZeroResult)
+
+  val cryptoResult = Mux(isAes, aesResult, result)
 
   val stage1Result = RegEnable(cryptoResult, io.in.valid)
   val stage1Valid = RegNext(io.in.valid, false.B)
