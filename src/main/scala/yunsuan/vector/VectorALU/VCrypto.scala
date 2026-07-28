@@ -58,15 +58,28 @@ class VCrypto extends Module {
 
 object VCrypto {
   object Opcode {
-    val vclmul  = 0.U(3.W)
-    val vclmulh = 1.U(3.W)
-    val vaesz   = 2.U(3.W)
+    val vclmul  = 0.U(4.W)
+    val vclmulh = 1.U(4.W)
+    val vaesz   = 2.U(4.W)
+    val vaesef  = 3.U(4.W)
+    val vaesem  = 4.U(4.W)
+    val vaesdf  = 5.U(4.W)
+    val vaesdm  = 6.U(4.W)
+    val vaeskf1 = 7.U(4.W)
+    val vaeskf2 = 8.U(4.W)
   }
 
   class Opcode extends Bundle {
-    val op = UInt(3.W)
+    val op = UInt(4.W)
 
     def isVclmulh: Bool = op === Opcode.vclmulh
+    def isVclmul: Bool = op === Opcode.vclmul
+    def isVaesef: Bool = op === Opcode.vaesef
+    def isVaesem: Bool = op === Opcode.vaesem
+    def isVaesdf: Bool = op === Opcode.vaesdf
+    def isVaesdm: Bool = op === Opcode.vaesdm
+    def isVaeskf1: Bool = op === Opcode.vaeskf1
+    def isVaeskf2: Bool = op === Opcode.vaeskf2
     def isVaesz: Bool = op === Opcode.vaesz
   }
 
@@ -81,8 +94,4 @@ object VCrypto {
     val vd = UInt(128.W)
     val vxsat = Bool()
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> c878943 (change input/output interface of VCrypto module)
