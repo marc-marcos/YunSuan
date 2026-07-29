@@ -20,6 +20,7 @@ class VAes extends Module {
   val op = in.op
   val state = in.vs3
   val rkey = in.vs2
+  val uimm = in.uimm
   val ensb = subBytes(state)
   val ensr = shiftRows(ensb)
   val enmix = mixColumns(ensr)
@@ -33,8 +34,12 @@ class VAes extends Module {
   val deark = desb ^ rkey
   val demix = mixColumnsInv(deark)
 
-  val kf1 = state
-  val kf2 = state
+  val keyFwd = Module(new KeyForward)
+  keyFwd.io.state := rkey
+  keyFwd.io.round_imm := uimm(3, 0)
+  val kfResult = keyFwd.io.kf1
+  val kf1 = kfResult
+  val kf2 = kfResult
 
   out.vd := Mux1H(Seq(
     (op.em || op.ef) -> enark,
@@ -150,6 +155,8 @@ object VAes {
     val vs3 = UInt(DLEN.W)
     // round key
     val vs2 = UInt(DLEN.W)
+    // round immediate (rnd for key expansion)
+    val uimm = UInt(5.W)
   }
 
   class Out extends Bundle {
