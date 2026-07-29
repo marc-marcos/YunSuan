@@ -10,7 +10,6 @@ import yunsuan.vector.v2.Crypto.Utils.Zvkned.subBytes
 import scala.collection.immutable.SeqMap
 import scala.language.implicitConversions
 
-
 class VAes extends Module {
   import VAes._
   import yunsuan.vector.v2.Crypto.Utils.Zvkned._
@@ -21,6 +20,7 @@ class VAes extends Module {
   val state = in.vs3
   val rkey = in.vs2
   val uimm = in.uimm
+
   val ensb = subBytes(state)
   val ensr = shiftRows(ensb)
   val enmix = mixColumns(ensr)
@@ -34,67 +34,43 @@ class VAes extends Module {
   val deark = desb ^ rkey
   val demix = mixColumnsInv(deark)
 
-  val keyFwd = Module(new KeyForward)
-  keyFwd.io.state := rkey
-  keyFwd.io.round_imm := uimm(3, 0)
-  val kfResult = keyFwd.io.kf1
-  val kf1 = kfResult
-  val kf2 = kfResult
+  // Key expansion AES-128
+  val w0 = rkey(127, 96)
+  val w1 = rkey(95, 64)
+  val w2 = rkey(63, 32)
+  val w3 = rkey(31, 0)
+
+  def rcon(round: UInt): UInt = {
+    MuxLookup(round, 0.U(8.W))(Seq(
+      0.U -> 0x01.U(8.W), 1.U -> 0x02.U(8.W),
+      2.U -> 0x04.U(8.W), 3.U -> 0x08.U(8.W),
+      4.U -> 0x10.U(8.W), 5.U -> 0x20.U(8.W),
+      6.U -> 0x40.U(8.W), 7.U -> 0x80.U(8.W),
+      8.U -> 0x1B.U(8.W), 9.U -> 0x36.U(8.W)
+    ))
+  }
+
+  val rot = Cat(w3(23,0), w3(31,24))
+  val padded = Cat(0.U(96.W), rot)
+  val sb_full = subBytes(padded)
+  val sub_rot = sb_full(31, 0)
+
+  val rcon_word = Cat(0.U(24.W), rcon(uimm(3,0)))
+
+  val w4 = sub_rot ^ w0 ^ rcon_word
+  val w5 = w4 ^ w1
+  val w6 = w5 ^ w2
+  val w7 = w6 ^ w3
+
+  val kf = Cat(w4, w5, w6, w7)
 
   out.vd := Mux1H(Seq(
     (op.em || op.ef) -> enark,
     op.dm -> demix,
     op.df -> deark,
-    op.kf1 -> kf1,
-    op.kf2 -> kf2
+    op.kf1 -> kf,
+    op.kf2 -> kf
   ))
-}
-
-class KeyForward extends Module {
-  import VAes._
-
-  val state = IO(Input(UInt(DLEN.W)))
-  val round_imm = IO(Input(UInt(4.W)))
-  val kf1 = IO(Output(UInt(DLEN.W)))
-
-  val w0 = state(DLEN - 1, DLEN - DLEN/4)
-  val w1 = state(DLEN - DLEN/4 - 1, DLEN - DLEN/2)
-  val w2 = state(DLEN - DLEN/2 - 1, DLEN - 3*DLEN/4)
-  val w3 = state(DLEN - 3*DLEN/4 - 1, 0)
-
-  val w4 = Wire(UInt(32.W))
-  val w5 = Wire(UInt(32.W))
-  val w6 = Wire(UInt(32.W))
-  val w7 = Wire(UInt(32.W))
-
-  def rcon(round: UInt): UInt = {
-    MuxLookup(round, 0.U(8.W), Seq(
-      0.U -> 0x01.U,
-      1.U -> 0x02.U,
-      2.U -> 0x04.U,
-      3.U -> 0x08.U,
-      4.U -> 0x10.U,
-      5.U -> 0x20.U,
-      6.U -> 0x40.U,
-      7.U -> 0x80.U,
-      8.U -> 0x1B.U,
-      9.U -> 0x36.U
-    ))
-  }
-
-  val rot = Cat(w3(23,0), w3(31,24))
-
-  val sub_rot = subBytes(Cat(0.U(96.W), rot))(31,0)
-
-  val rcon_word = Cat(0.U(24.W), rcon(round_imm))
-
-  w4 := sub_rot ^ w0 ^ rcon_word
-
-  w5 := w4 ^ w1
-  w6 := w5 ^ w2
-  w7 := w6 ^ w3
-
-  kf1 := Cat(w4, w5, w6, w7)
 }
 
 class SubBytes extends Module {
