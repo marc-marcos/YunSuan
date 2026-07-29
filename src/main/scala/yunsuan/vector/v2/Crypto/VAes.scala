@@ -33,11 +33,63 @@ class VAes extends Module {
   val deark = desb ^ rkey
   val demix = mixColumnsInv(deark)
 
+  val kf1 = state
+  val kf2 = state
+
   out.vd := Mux1H(Seq(
     (op.em || op.ef) -> enark,
     op.dm -> demix,
     op.df -> deark,
+    op.kf1 -> kf1,
+    op.kf2 -> kf2
   ))
+}
+
+class KeyForward extends Module {
+  import VAes._
+
+  val state = IO(Input(UInt(DLEN.W)))
+  val round_imm = IO(Input(UInt(4.W)))
+  val kf1 = IO(Output(UInt(DLEN.W)))
+
+  val w0 = state(DLEN - 1, DLEN - DLEN/4)
+  val w1 = state(DLEN - DLEN/4 - 1, DLEN - DLEN/2)
+  val w2 = state(DLEN - DLEN/2 - 1, DLEN - 3*DLEN/4)
+  val w3 = state(DLEN - 3*DLEN/4 - 1, 0)
+
+  val w4 = Wire(UInt(32.W))
+  val w5 = Wire(UInt(32.W))
+  val w6 = Wire(UInt(32.W))
+  val w7 = Wire(UInt(32.W))
+
+  def rcon(round: UInt): UInt = {
+    MuxLookup(round, 0.U(8.W), Seq(
+      0.U -> 0x01.U,
+      1.U -> 0x02.U,
+      2.U -> 0x04.U,
+      3.U -> 0x08.U,
+      4.U -> 0x10.U,
+      5.U -> 0x20.U,
+      6.U -> 0x40.U,
+      7.U -> 0x80.U,
+      8.U -> 0x1B.U,
+      9.U -> 0x36.U
+    ))
+  }
+
+  val rot = Cat(w3(23,0), w3(31,24))
+
+  val sub_rot = subBytes(Cat(0.U(96.W), rot))(31,0)
+
+  val rcon_word = Cat(0.U(24.W), rcon(round_imm))
+
+  w4 := sub_rot ^ w0 ^ rcon_word
+
+  w5 := w4 ^ w1
+  w6 := w5 ^ w2
+  w7 := w6 ^ w3
+
+  kf1 := Cat(w4, w5, w6, w7)
 }
 
 class SubBytes extends Module {
@@ -106,6 +158,6 @@ object VAes {
   }
 
   class Op extends Bundle {
-    val em, ef, dm, df = Bool()
+    val em, ef, dm, df, kf1, kf2 = Bool()
   }
 }
