@@ -119,6 +119,11 @@ package object Utils {
       Cat(bytes.map(B => kVAESXEncSBox(B)).reverse)
     }
 
+    def subWord(word: UInt): UInt = {
+      val bytes = word.splitToVec(num = 4, w = 8)
+      Cat(bytes.map(B => kVAESXEncSBox(B)).reverse)
+    }
+
     def subBytesInv(state: UInt): UInt = {
       require(state.getWidth == 128)
       val bytes = state.splitToVec(num = 16, w = 8)

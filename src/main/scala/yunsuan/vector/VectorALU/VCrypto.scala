@@ -18,7 +18,9 @@ class VCrypto extends Module {
   val isAesDm = io.in.bits.opcode.isVaesdm
   val isAesEf = io.in.bits.opcode.isVaesef
   val isAesEm = io.in.bits.opcode.isVaesem
-  val isAes = io.in.bits.opcode.isVaesz || io.in.bits.opcode.isVaesdf || io.in.bits.opcode.isVaesdm || io.in.bits.opcode.isVaesef || io.in.bits.opcode.isVaesem
+  val isAesKf1 = io.in.bits.opcode.isVaeskf1
+  val isAesKf2 = io.in.bits.opcode.isVaeskf2
+  val isAes = isAesZero || isAesDf || isAesDm || isAesEf || isAesEm || isAesKf1 || isAesKf2
 
   val hi_hi = Wire(UInt(64.W))
   val hi_lo = Wire(UInt(64.W))
@@ -49,10 +51,11 @@ class VCrypto extends Module {
   aes.in.bits.op.ef := isAesEf
   aes.in.bits.op.dm := isAesDm
   aes.in.bits.op.df := isAesDf
-  aes.in.bits.op.kf1 := false.B
-  aes.in.bits.op.kf2 := false.B
+  aes.in.bits.op.kf1 := isAesKf1
+  aes.in.bits.op.kf2 := isAesKf2
   aes.in.bits.vs3 := io.in.bits.old_vd
   aes.in.bits.vs2 := io.in.bits.vs2
+  aes.in.bits.uimm := io.in.bits.uimm
 
   val aesResult = Mux(!isAesZero, aes.out.vd, aesZeroResult)
 
@@ -98,6 +101,7 @@ object VCrypto {
     val vs1 = UInt(128.W)
     val vs2 = UInt(128.W)
     val old_vd = UInt(128.W)
+    val uimm = UInt(5.W)
   }
 
   class Out extends Bundle {
