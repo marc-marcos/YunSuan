@@ -49,6 +49,8 @@ class VCrypto extends Module {
   aes.in.bits.op.ef := isAesEf
   aes.in.bits.op.dm := isAesDm
   aes.in.bits.op.df := isAesDf
+  aes.in.bits.op.kf1 := false.B
+  aes.in.bits.op.kf2 := false.B
   aes.in.bits.vs3 := io.in.bits.old_vd
   aes.in.bits.vs2 := io.in.bits.vs2
 

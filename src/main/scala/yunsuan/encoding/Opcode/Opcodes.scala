@@ -2010,10 +2010,10 @@ object Opcodes {
     val vclmul = DvSvlS2vS1(vclmul_op, unused_f5, E64)
     val vclmulh = DvSvlS2vS1(vclmulh_op, unused_f5, E64)
 
-    val vaesef = DvSvlS2vS1(vaes_vv_op, vaesef_f5, E32)
-    val vaesem = DvSvlS2vS1(vaes_vv_op, vaesem_f5, E32)
-    val vaesdf = DvSvlS2vS1(vaes_vv_op, vaesdf_f5, E32)
-    val vaesdm = DvSvlS2vS1(vaes_vv_op, vaesdm_f5, E32)
+    val vaesef = DvSvlS2vS1S3v(vaes_vv_op, vaesef_f5, E32) // TODO Marc: Changed from DvSvlS2vS1 to DvSvlS2vS1S3v to match the other AES ops. Check if this is correct.
+    val vaesem = DvSvlS2vS1S3v(vaes_vv_op, vaesem_f5, E32)
+    val vaesdf = DvSvlS2vS1S3v(vaes_vv_op, vaesdf_f5, E32)
+    val vaesdm = DvSvlS2vS1S3v(vaes_vv_op, vaesdm_f5, E32)
     val vaeskf1 = DvSvlS2vS1(vaeskf1_op, unused_f5, E32)
     val vaeskf2 = DvSvlS2vS1(vaeskf2_op, unused_f5, E32)
     val vaesz = DvSvlS2vS1(vaesz_op, vaesz_f5, E32)
