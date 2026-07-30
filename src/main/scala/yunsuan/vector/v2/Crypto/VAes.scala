@@ -50,12 +50,12 @@ class VAes extends Module {
     ))
   }
 
-  val rot = Cat(w3(23,0), w3(31,24))
+  val rot = Cat(w3(7,0), w3(31,8))
   val padded = Cat(0.U(96.W), rot)
   val sb_full = subBytes(padded)
   val sub_rot = sb_full(31, 0)
 
-  val rcon_word = Cat(0.U(24.W), rcon(uimm(3,0)))
+  val rcon_word = Cat(0.U(24.W), rcon(uimm(3,0) - 1.U))
 
   val w4 = sub_rot ^ w0 ^ rcon_word
   val w5 = w4 ^ w1
