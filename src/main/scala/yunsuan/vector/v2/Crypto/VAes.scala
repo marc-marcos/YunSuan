@@ -64,10 +64,10 @@ class VAes extends Module {
   val round = Mux(zimm4 === 0.U || zimm4 > 10.U, zimm4 ^ 0x8.U, zimm4)
   val rcon_word = Cat(0.U(24.W), rcon(round - 1.U))
 
-  val nw0 = sub_rot ^ w3 ^ rcon_word
-  val nw1 = nw0 ^ w0
-  val nw2 = nw1 ^ w1
-  val nw3 = nw2 ^ w2
+  val nw0 = sub_rot ^ w0 ^ rcon_word
+  val nw1 = nw0 ^ w1
+  val nw2 = nw1 ^ w2
+  val nw3 = nw2 ^ w3
   val kf1 = Cat(nw3, nw2, nw1, nw0)
 
   // Key expansion AES-256
@@ -104,7 +104,7 @@ class VAes extends Module {
     op.dm -> demix,
     op.df -> deark,
     op.kf1 -> kf1,
-    op.kf2 -> kf2
+    op.kf2 -> kf1
   ))
 }
 
