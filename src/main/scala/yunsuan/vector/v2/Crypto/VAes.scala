@@ -35,10 +35,10 @@ class VAes extends Module {
   val demix = mixColumnsInv(deark)
 
   // Key expansion AES-128
-  val w0 = rkey(127, 96)
-  val w1 = rkey(95, 64)
-  val w2 = rkey(63, 32)
-  val w3 = rkey(31, 0)
+  val w3 = rkey(127, 96)
+  val w2 = rkey(95, 64)
+  val w1 = rkey(63, 32)
+  val w0 = rkey(31, 0)
 
   def rcon(round: UInt): UInt = {
     MuxLookup(round, 0.U(8.W))(Seq(
@@ -51,25 +51,60 @@ class VAes extends Module {
   }
 
   val rot = Cat(w3(7,0), w3(31,8))
+
+  /*
   val padded = Cat(0.U(96.W), rot)
   val sb_full = subBytes(padded)
   val sub_rot = sb_full(31, 0)
+  */
 
-  val rcon_word = Cat(0.U(24.W), rcon(uimm(3,0) - 1.U))
+  val sub_rot = subWord(rot)
 
-  val w4 = sub_rot ^ w0 ^ rcon_word
-  val w5 = w4 ^ w1
-  val w6 = w5 ^ w2
-  val w7 = w6 ^ w3
+  val zimm4 = uimm(3, 0)
+  val round = Mux(zimm4 === 0.U || zimm4 > 10.U, zimm4 ^ 0x8.U, zimm4)
+  val rcon_word = Cat(0.U(24.W), rcon(round - 1.U))
 
-  val kf = Cat(w4, w5, w6, w7)
+  val nw0 = sub_rot ^ w3 ^ rcon_word
+  val nw1 = nw0 ^ w0
+  val nw2 = nw1 ^ w1
+  val nw3 = nw2 ^ w2
+  val kf1 = Cat(nw3, nw2, nw1, nw0)
+
+  // Key expansion AES-256
+
+  /*
+  val crk3 = rkey(127, 96)
+  val crk2 = rkey(95, 64)
+  val crk1 = rkey(63, 32)
+  val crk0 = rkey(31, 0)
+
+  val rkb3 = state(127, 96)
+  val rkb2 = state(95, 64)
+  val rkb1 = state(63, 32)
+  val rkb0 = state(31, 0)
+
+  val sub =
+  val nw0_odd = 
+
+  val rot =
+  val sub_rot =
+  val rcon = 
+  val nw0_even = 
+
+  val nw0 = Mux(rnd(0) === 0.U, nw0_even, nw0_odd)
+  val nw1 = nw0 ^ rkb(1)
+  val nw2 = nw1 ^ rkb(2)
+  val nw3 = nw2 ^ rkb(3)
+
+  val kf2 = Cat(nw3, nw2, nw1, nw0)
+  */
 
   out.vd := Mux1H(Seq(
     (op.em || op.ef) -> enark,
     op.dm -> demix,
     op.df -> deark,
-    op.kf1 -> kf,
-    op.kf2 -> kf
+    op.kf1 -> kf1,
+    op.kf2 -> kf2
   ))
 }
 
