@@ -67,7 +67,6 @@ class VAes extends Module {
 
   // Key expansion AES-256
 
-  /*
   val crk3 = rkey(127, 96)
   val crk2 = rkey(95, 64)
   val crk1 = rkey(63, 32)
@@ -78,28 +77,31 @@ class VAes extends Module {
   val rkb1 = state(63, 32)
   val rkb0 = state(31, 0)
 
-  val sub = subWord(crk3)
-  val nw0_odd = sub ^ rkb0
+  val sub_2 = subWord(crk3)
+  val nw0_odd = sub_2 ^ rkb0
 
-  val rot = Cat(crk3(7, 0), crk3(31, 8))
-  val sub_rot = subWord(rot)
-  val rcon = Cat(0.U(24.W), rcon(round >> 1) - 1)
-  val nw0_even = sub_rot ^ rcon ^ rkb0
 
-  val nw0 = Mux(rnd(0) === 0.U, nw0_even, nw0_odd)
-  val nw1 = nw0 ^ rkb(1)
-  val nw2 = nw1 ^ rkb(2)
-  val nw3 = nw2 ^ rkb(3)
-  */
+  val rot_2 = Cat(crk3(7, 0), crk3(31, 8))
+  val sub_rot_2 = subWord(rot_2)
 
-  val kf2 = Cat(nw3, nw2, nw1, nw0)
+  val round_2 = Mux(uimm(3, 0) < 2.U || uimm(3, 0) > 14.U, uimm(3, 0) ^ 0x8.U, uimm(3, 0));
+
+  val rcon_2 = Cat(0.U(24.W), rcon((round_2 >> 1) - 1.U))
+  val nw0_even = sub_rot_2 ^ rcon_2 ^ rkb0
+
+  val nw0_2 = Mux(round_2(0) === 0.U, nw0_even, nw0_odd)
+  val nw1_2 = nw0_2 ^ rkb1
+  val nw2_2 = nw1_2 ^ rkb2
+  val nw3_2 = nw2_2 ^ rkb3
+
+  val kf2 = Cat(nw3_2, nw2_2, nw1_2, nw0_2)
 
   out.vd := Mux1H(Seq(
     (op.em || op.ef) -> enark,
     op.dm -> demix,
     op.df -> deark,
     op.kf1 -> kf1,
-    op.kf2 -> kf1
+    op.kf2 -> kf2
   ))
 }
 

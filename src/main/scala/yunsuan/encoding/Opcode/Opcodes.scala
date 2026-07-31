@@ -2015,7 +2015,7 @@ object Opcodes {
     val vaesdf = DvSvlS2vS1S3v(vaes_vv_op, vaesdf_f5, E32)
     val vaesdm = DvSvlS2vS1S3v(vaes_vv_op, vaesdm_f5, E32)
     val vaeskf1 = DvSvlS2vS1(vaeskf1_op, unused_f5, E32)
-    val vaeskf2 = DvSvlS2vS1(vaeskf2_op, unused_f5, E32)
+    val vaeskf2 = DvSvlS2vS1S3v(vaeskf2_op, unused_f5, E32)
     val vaesz = DvSvlS2vS1(vaesz_op, vaesz_f5, E32)
 
     override def getLat(opcode: Opcode): Int = 2
