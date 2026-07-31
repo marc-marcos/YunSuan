@@ -52,11 +52,6 @@ class VAes extends Module {
 
   val rot = Cat(w3(7,0), w3(31,8))
 
-  /*
-  val padded = Cat(0.U(96.W), rot)
-  val sb_full = subBytes(padded)
-  val sub_rot = sb_full(31, 0)
-  */
 
   val sub_rot = subWord(rot)
 
@@ -72,6 +67,7 @@ class VAes extends Module {
 
   // Key expansion AES-256
 
+  /*
   val crk3 = rkey(127, 96)
   val crk2 = rkey(95, 64)
   val crk1 = rkey(63, 32)
@@ -94,6 +90,7 @@ class VAes extends Module {
   val nw1 = nw0 ^ rkb(1)
   val nw2 = nw1 ^ rkb(2)
   val nw3 = nw2 ^ rkb(3)
+  */
 
   val kf2 = Cat(nw3, nw2, nw1, nw0)
 

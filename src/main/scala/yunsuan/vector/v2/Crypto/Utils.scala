@@ -121,7 +121,7 @@ package object Utils {
 
     def subWord(word: UInt): UInt = {
       val bytes = word.splitToVec(num = 4, w = 8)
-      Cat(bytes.map(B => kVAESXEncSBox(B)))
+      Cat(bytes.map(B => kVAESXEncSBox(B)).reverse)
     }
 
     def subBytesInv(state: UInt): UInt = {
