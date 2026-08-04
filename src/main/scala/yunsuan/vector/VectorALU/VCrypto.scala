@@ -5,6 +5,7 @@ import chisel3._
 import chisel3.util._
 import yunsuan.vector.v2.Crypto.VClmul
 import yunsuan.vector.v2.Crypto.VAes
+import yunsuan.vector.v2.Crypto.VGHash
 
 class VCrypto extends Module {
   val io = IO(new Bundle {
@@ -21,6 +22,7 @@ class VCrypto extends Module {
   val isAesKf1 = io.in.bits.opcode.isVaeskf1
   val isAesKf2 = io.in.bits.opcode.isVaeskf2
   val isAes = isAesZero || isAesDf || isAesDm || isAesEf || isAesEm || isAesKf1 || isAesKf2
+  val isGHash = io.in.bits.opcode.isVghsh || io.in.bits.opcode.isVgmul
 
   val hi_hi = Wire(UInt(64.W))
   val hi_lo = Wire(UInt(64.W))
@@ -59,7 +61,12 @@ class VCrypto extends Module {
 
   val aesResult = Mux(!isAesZero, aes.out.vd, aesZeroResult)
 
-  val cryptoResult = Mux(isAes, aesResult, result)
+  val ghash = Module(new VGHash)
+  ghash.in.y := io.in.bits.old_vd
+  ghash.in.x := Mux(io.in.bits.opcode.isVghsh, io.in.bits.vs1, 0.U)
+  ghash.in.h := io.in.bits.vs2
+
+  val cryptoResult = Mux(isAes, aesResult, Mux(isGHash, ghash.out, result))
 
   val stage1Result = RegEnable(cryptoResult, io.in.valid)
   val stage1Valid = RegNext(io.in.valid, false.B)
@@ -80,6 +87,8 @@ object VCrypto {
     val vaesdm  = 6.U(4.W)
     val vaeskf1 = 7.U(4.W)
     val vaeskf2 = 8.U(4.W)
+    val vghsh   = 9.U(4.W)
+    val vgmul   = 10.U(4.W)
   }
 
   class Opcode extends Bundle {
@@ -94,6 +103,8 @@ object VCrypto {
     def isVaeskf1: Bool = op === Opcode.vaeskf1
     def isVaeskf2: Bool = op === Opcode.vaeskf2
     def isVaesz: Bool = op === Opcode.vaesz
+    def isVghsh: Bool = op === Opcode.vghsh
+    def isVgmul: Bool = op === Opcode.vgmul
   }
 
   class In extends Bundle {
