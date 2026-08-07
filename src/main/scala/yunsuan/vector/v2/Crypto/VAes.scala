@@ -26,9 +26,9 @@ class VAes extends Module {
   val ensb = subBytes(state)
   val ensr = shiftRows(ensb)
 
-  val ensr_reg = RegEnable(ensr, io.in.valid)
-  val op_reg = RegEnable(op, io.in.valid)
-  val rkey_reg = RegEnable(rkey, io.in.valid)
+  val ensr_reg = RegEnable(ensr, in.valid)
+  val op_reg = RegEnable(op, in.valid)
+  val rkey_reg = RegEnable(rkey, in.valid)
 
 
   val enmix = mixColumns(ensr_reg)
@@ -41,7 +41,7 @@ class VAes extends Module {
 
   val desr = shiftRowsInv(state)
 
-  val desr_reg = RegEnable(desr, io.in.valid)
+  val desr_reg = RegEnable(desr, in.valid)
 
   val desb = subBytesInv(desr_reg)
   val deark = desb ^ rkey_reg
@@ -72,8 +72,8 @@ class VAes extends Module {
   val round = Mux(zimm4 === 0.U || zimm4 > 10.U, zimm4 ^ 0x8.U, zimm4)
   val rcon_word = Cat(0.U(24.W), rcon(round - 1.U))
 
-  val sub_rot_reg = RegEnable(sub_rot, io.in.valid)
-  val rcon_word_reg = RegEnable(rcon_word, io.in.valid)
+  val sub_rot_reg = RegEnable(sub_rot, in.valid)
+  val rcon_word_reg = RegEnable(rcon_word, in.valid)
 
   val w3_reg = rkey_reg(127, 96)
   val w2_reg = rkey_reg(95, 64)
@@ -105,14 +105,14 @@ class VAes extends Module {
   val round_2 = Mux(uimm(3, 0) < 2.U || uimm(3, 0) > 14.U, uimm(3, 0) ^ 0x8.U, uimm(3, 0));
   val rcon_2 = Cat(0.U(24.W), rcon((round_2 >> 1) - 1.U))
 
-  val sub_2_reg = RegEnable(sub_2, io.in.valid)
-  val sub_rot_2_reg = RegEnable(sub_rot_2, io.in.valid)
-  val rcon_2_reg = RegEnable(rcon_2, io.in.valid)
-  val rkb0_reg = RegEnable(rkb0, io.in.valid)
-  val rkb1_reg = RegEnable(rkb1, io.in.valid)
-  val rkb2_reg = RegEnable(rkb2, io.in.valid)
-  val rkb3_reg = RegEnable(rkb3, io.in.valid)
-  val round_2_lsb_reg = RegEnable(round_2(0), io.in.valid)
+  val sub_2_reg = RegEnable(sub_2, in.valid)
+  val sub_rot_2_reg = RegEnable(sub_rot_2, in.valid)
+  val rcon_2_reg = RegEnable(rcon_2, in.valid)
+  val rkb0_reg = RegEnable(rkb0, in.valid)
+  val rkb1_reg = RegEnable(rkb1, in.valid)
+  val rkb2_reg = RegEnable(rkb2, in.valid)
+  val rkb3_reg = RegEnable(rkb3, in.valid)
+  val round_2_lsb_reg = RegEnable(round_2(0), in.valid)
 
 
   val nw0_odd = sub_2_reg ^ rkb0_reg
@@ -124,7 +124,9 @@ class VAes extends Module {
 
   val kf2 = Cat(nw3_2, nw2_2, nw1_2, nw0_2)
 
-  val stage1_valid = RegNext(io.in.valid, false.B)
+  val stage1_valid = RegNext(in.valid, false.B)
+  val stage2_valid = RegNext(stage1_valid, false.B)
+
   val enark_reg = RegEnable(enark, stage1_valid)
   val demix_reg = RegEnable(demix, stage1_valid)
   val deark_reg = RegEnable(deark, stage1_valid)
@@ -139,7 +141,7 @@ class VAes extends Module {
     op_stage1.kf1 -> kf1_reg,
     op_stage1.kf2 -> kf2_reg
   ))
-  out.valid := ShiftRegister(io.in.valid, 2, false.B)
+  out.valid := stage2_valid
 }
 
 class SubBytes extends Module {
