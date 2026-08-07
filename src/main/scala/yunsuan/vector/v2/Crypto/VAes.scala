@@ -15,26 +15,40 @@ class VAes extends Module {
   import yunsuan.vector.v2.Crypto.Utils.Zvkned._
 
   val in = IO(Input(ValidIO(new In)))
-  val out = IO(Output(new Out))
+  val out = IO(Output(ValidIO(new Out)))
   val op = in.op
   val state = in.vs3
   val rkey = in.vs2
   val uimm = in.uimm
 
+  // Encryption path
+
   val ensb = subBytes(state)
   val ensr = shiftRows(ensb)
-  val enmix = mixColumns(ensr)
+
+  val ensr_reg = RegEnable(ensr, io.in.valid)
+  val op_reg = RegEnable(op, io.in.valid)
+  val rkey_reg = RegEnable(rkey, io.in.valid)
+
+
+  val enmix = mixColumns(ensr_reg)
   val enark = Mux1H(Seq(
-    op.em -> enmix,
-    op.ef -> ensr,
-  )) ^ rkey
+    op_reg.em -> enmix,
+    op_reg.ef -> ensr_reg,
+  )) ^ rkey_reg
+
+  // Decryption path
 
   val desr = shiftRowsInv(state)
-  val desb = subBytesInv(desr)
-  val deark = desb ^ rkey
+
+  val desr_reg = RegEnable(desr, io.in.valid)
+
+  val desb = subBytesInv(desr_reg)
+  val deark = desb ^ rkey_reg
   val demix = mixColumnsInv(deark)
 
   // Key expansion AES-128
+
   val w3 = rkey(127, 96)
   val w2 = rkey(95, 64)
   val w1 = rkey(63, 32)
@@ -52,17 +66,24 @@ class VAes extends Module {
 
   val rot = Cat(w3(7,0), w3(31,8))
 
-
   val sub_rot = subWord(rot)
 
   val zimm4 = uimm(3, 0)
   val round = Mux(zimm4 === 0.U || zimm4 > 10.U, zimm4 ^ 0x8.U, zimm4)
   val rcon_word = Cat(0.U(24.W), rcon(round - 1.U))
 
-  val nw0 = sub_rot ^ w0 ^ rcon_word
-  val nw1 = nw0 ^ w1
-  val nw2 = nw1 ^ w2
-  val nw3 = nw2 ^ w3
+  val sub_rot_reg = RegEnable(sub_rot, io.in.valid)
+  val rcon_word_reg = RegEnable(rcon_word, io.in.valid)
+
+  val w3_reg = rkey_reg(127, 96)
+  val w2_reg = rkey_reg(95, 64)
+  val w1_reg = rkey_reg(63, 32)
+  val w0_reg = rkey_reg(31, 0)
+
+  val nw0 = sub_rot_reg ^ w0_reg ^ rcon_word_reg
+  val nw1 = nw0 ^ w1_reg
+  val nw2 = nw1 ^ w2_reg
+  val nw3 = nw2 ^ w3_reg
   val kf1 = Cat(nw3, nw2, nw1, nw0)
 
   // Key expansion AES-256
@@ -78,31 +99,47 @@ class VAes extends Module {
   val rkb0 = state(31, 0)
 
   val sub_2 = subWord(crk3)
-  val nw0_odd = sub_2 ^ rkb0
-
 
   val rot_2 = Cat(crk3(7, 0), crk3(31, 8))
   val sub_rot_2 = subWord(rot_2)
-
   val round_2 = Mux(uimm(3, 0) < 2.U || uimm(3, 0) > 14.U, uimm(3, 0) ^ 0x8.U, uimm(3, 0));
-
   val rcon_2 = Cat(0.U(24.W), rcon((round_2 >> 1) - 1.U))
-  val nw0_even = sub_rot_2 ^ rcon_2 ^ rkb0
 
-  val nw0_2 = Mux(round_2(0) === 0.U, nw0_even, nw0_odd)
-  val nw1_2 = nw0_2 ^ rkb1
-  val nw2_2 = nw1_2 ^ rkb2
-  val nw3_2 = nw2_2 ^ rkb3
+  val sub_2_reg = RegEnable(sub_2, io.in.valid)
+  val sub_rot_2_reg = RegEnable(sub_rot_2, io.in.valid)
+  val rcon_2_reg = RegEnable(rcon_2, io.in.valid)
+  val rkb0_reg = RegEnable(rkb0, io.in.valid)
+  val rkb1_reg = RegEnable(rkb1, io.in.valid)
+  val rkb2_reg = RegEnable(rkb2, io.in.valid)
+  val rkb3_reg = RegEnable(rkb3, io.in.valid)
+  val round_2_lsb_reg = RegEnable(round_2(0), io.in.valid)
+
+
+  val nw0_odd = sub_2_reg ^ rkb0_reg
+  val nw0_even = sub_rot_2_reg ^ rcon_2_reg ^ rkb0_reg
+  val nw0_2 = Mux(round_2_lsb_reg === 0.U, nw0_even, nw0_odd)
+  val nw1_2 = nw0_2 ^ rkb1_reg
+  val nw2_2 = nw1_2 ^ rkb2_reg
+  val nw3_2 = nw2_2 ^ rkb3_reg
 
   val kf2 = Cat(nw3_2, nw2_2, nw1_2, nw0_2)
 
-  out.vd := Mux1H(Seq(
-    (op.em || op.ef) -> enark,
-    op.dm -> demix,
-    op.df -> deark,
-    op.kf1 -> kf1,
-    op.kf2 -> kf2
+  val stage1_valid = RegNext(io.in.valid, false.B)
+  val enark_reg = RegEnable(enark, stage1_valid)
+  val demix_reg = RegEnable(demix, stage1_valid)
+  val deark_reg = RegEnable(deark, stage1_valid)
+  val kf1_reg = RegEnable(kf1, stage1_valid)
+  val kf2_reg = RegEnable(kf2, stage1_valid)
+  val op_stage1 = RegEnable(op_reg, stage1_valid)
+
+  out.bits.vd := Mux1H(Seq(
+    (op_stage1.em || op_stage1.ef) -> enark_reg,
+    op_stage1.dm -> demix_reg,
+    op_stage1.df -> deark_reg,
+    op_stage1.kf1 -> kf1_reg,
+    op_stage1.kf2 -> kf2_reg
   ))
+  out.valid := ShiftRegister(io.in.valid, 2, false.B)
 }
 
 class SubBytes extends Module {

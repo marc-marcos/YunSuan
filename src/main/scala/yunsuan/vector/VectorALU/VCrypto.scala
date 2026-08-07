@@ -44,6 +44,7 @@ class VCrypto extends Module {
   val result = Cat(Mux(isHigh, hi_hi, hi_lo), Mux(isHigh, lo_hi, lo_lo))
 
   val aesZeroResult = io.in.bits.old_vd ^ io.in.bits.vs2
+  val aesZeroResult_d2 = ShiftRegister(aesZeroResult, 2, io.in.valid && isAesZero)
 
   val aes = Module(new VAes)
   aes.in.valid := io.in.valid
@@ -57,16 +58,23 @@ class VCrypto extends Module {
   aes.in.bits.vs2 := io.in.bits.vs2
   aes.in.bits.uimm := io.in.bits.uimm
 
-  val aesResult = Mux(!isAesZero, aes.out.vd, aesZeroResult)
+  val aesResult_d2 = Mux(ShiftRegister(isAesZero, 2, false.B), aesZeroResult_d2, aes.out.bits.vd)
 
-  val cryptoResult = Mux(isAes, aesResult, result)
+  val vclmul_d1 = RegEnable(result, io.in.valid)
+  val vclmul_d2 = RegEnable(vclmul_d1, RegNext(io.in.valid, false.B))
 
-  val stage1Result = RegEnable(cryptoResult, io.in.valid)
-  val stage1Valid = RegNext(io.in.valid, false.B)
+  val isVclmul_d2 = ShiftRegister(Mux(io.in.valid, !isAes, false.B), 2)
+  val isAes_d2 = ShiftRegister(Mux(io.in.valid, isAes, false.B), 2)
+  val valid_d2 = ShiftRegister(io.in.valid, 2, false.B)
 
-  io.out.bits.vd    := RegEnable(stage1Result, stage1Valid)
+
+  io.out.bits.vd    := MuxCase(0.U(128.W), Seq(
+                                 isAes_d2 -> aesResult_d2,
+                                 isVclmul_d2 -> vclmul_d2
+  ))
+
   io.out.bits.vxsat := false.B
-  io.out.valid      := RegNext(stage1Valid, false.B)
+  io.out.valid      := valid_d2
 }
 
 object VCrypto {
