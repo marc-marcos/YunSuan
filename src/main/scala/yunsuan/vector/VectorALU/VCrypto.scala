@@ -5,6 +5,7 @@ import chisel3._
 import chisel3.util._
 import yunsuan.vector.v2.Crypto.VClmul
 import yunsuan.vector.v2.Crypto.VAes
+import yunsuan.vector.v2.Crypto.VGHash
 
 class VCrypto extends Module {
   val io = IO(new Bundle {
@@ -22,6 +23,7 @@ class VCrypto extends Module {
   val isAesKf1 = io.in.bits.opcode.isVaeskf1
   val isAesKf2 = io.in.bits.opcode.isVaeskf2
   val isAes = isAesZero || isAesDf || isAesDm || isAesEf || isAesEm || isAesKf1 || isAesKf2
+  val isGHash = io.in.bits.opcode.isVghsh || io.in.bits.opcode.isVgmul
 
   val hi_hi = Wire(UInt(64.W))
   val hi_lo = Wire(UInt(64.W))
@@ -66,14 +68,25 @@ class VCrypto extends Module {
   val isAesZero_d2 = ShiftRegister(Mux(io.in.valid, isAesZero, false.B), 2)
   val aesResult_d2 = Mux(isAesZero_d2, aesZeroResult_d2, aes.out.bits.vd)
 
+  // GHash
+
+  val ghash = Module(new VGHash)
+  ghash.in.valid := io.in.valid
+  // vghsh: vd = (old_vd ^ vs1) * vs2; vgmul: vd = old_vd * vs2
+  ghash.in.bits.y := io.in.bits.old_vd
+  ghash.in.bits.x := Mux(io.in.bits.opcode.isVghsh, io.in.bits.vs1, 0.U(128.W))
+  ghash.in.bits.h := io.in.bits.vs2
+
   val isVclmul_d2 = ShiftRegister(Mux(io.in.valid, isVclmul, false.B), 2)
   val isAes_d2 = ShiftRegister(Mux(io.in.valid, isAes, false.B), 2)
+  val isGhash_d2 = ShiftRegister(Mux(io.in.valid, isGHash, false.B), 2)
   val valid_d2 = ShiftRegister(io.in.valid, 2)
 
 
   io.out.bits.vd    := MuxCase(0.U(128.W), Seq(
                                  isAes_d2 -> aesResult_d2,
-                                 isVclmul_d2 -> vclmul_d2
+                                 isVclmul_d2 -> vclmul_d2,
+                                 isGhash_d2 -> ghash.out.bits.vd
   ))
 
   io.out.bits.vxsat := false.B
@@ -91,6 +104,8 @@ object VCrypto {
     val vaesdm  = 6.U(4.W)
     val vaeskf1 = 7.U(4.W)
     val vaeskf2 = 8.U(4.W)
+    val vghsh   = 9.U(4.W)
+    val vgmul   = 10.U(4.W)
   }
 
   class Opcode extends Bundle {
@@ -105,6 +120,8 @@ object VCrypto {
     def isVaeskf1: Bool = op === Opcode.vaeskf1
     def isVaeskf2: Bool = op === Opcode.vaeskf2
     def isVaesz: Bool = op === Opcode.vaesz
+    def isVghsh: Bool = op === Opcode.vghsh
+    def isVgmul: Bool = op === Opcode.vgmul
   }
 
   class In extends Bundle {

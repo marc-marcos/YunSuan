@@ -1998,6 +1998,7 @@ object Opcodes {
     private val vclmulh_op = bb"001101"
 
     private val vaes_vv_op = bb"101000"
+    private val vghsh_op = bb"101100"
     private val vaeskf1_op = bb"100010"
     private val vaeskf2_op = bb"101010"
     private val vaesz_op = bb"101001"
@@ -2008,6 +2009,7 @@ object Opcodes {
     private val vaesem_f5 = bb"00010"
     private val vaesef_f5 = bb"00011"
     private val vaesz_f5 = bb"00111"
+    private val vgmul_f5 = bb"10001"
 
     val vclmul = DvSvlS2vS1(vclmul_op, unused_f5, E64)
     val vclmulh = DvSvlS2vS1(vclmulh_op, unused_f5, E64)
@@ -2021,6 +2023,8 @@ object Opcodes {
     val vaeskf1 = DvSvlS2vS1(vaeskf1_op, unused_f5, E32)
     val vaeskf2 = DvSvlS2vS1S3v(vaeskf2_op, unused_f5, E32)
     val vaesz = DvSvlS2vS3v(vaesz_op, vaesz_f5, E32)
+    val vghsh = DvSvlS2vS1S3v(vghsh_op, unused_f5, E32)
+    val vgmul = DvSvlS2vS3v(vaes_vv_op, vgmul_f5, E32)
 
     override def getLat(opcode: Opcode): Int = 2
 
