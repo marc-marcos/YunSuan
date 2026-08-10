@@ -210,6 +210,10 @@ abstract class Opcodes {
     Value(bp1, bp2: _*)(name) + VpWen + VlRen + Src2Vp + Src1En + Src3Vp
   }
 
+  def DvSvlS2vS3v(bp1: BitPat, bp2: BitPat*)(implicit name: SourceName): Type = {
+    Value(bp1, bp2: _*)(name) + VpWen + VlRen + Src2Vp + Src3Vp
+  }
+
   def DmSvlS2vS1(bp1: BitPat, bp2: BitPat*)(implicit name: SourceName): Type = {
     Value(bp1, bp2: _*)(name) + VmWen + VlRen + Src2Vp + Src1En
   }
@@ -2008,13 +2012,15 @@ object Opcodes {
     val vclmul = DvSvlS2vS1(vclmul_op, unused_f5, E64)
     val vclmulh = DvSvlS2vS1(vclmulh_op, unused_f5, E64)
 
-    val vaesef = DvSvlS2vS1S3v(vaes_vv_op, vaesef_f5, E32)
-    val vaesem = DvSvlS2vS1S3v(vaes_vv_op, vaesem_f5, E32)
-    val vaesdf = DvSvlS2vS1S3v(vaes_vv_op, vaesdf_f5, E32)
-    val vaesdm = DvSvlS2vS1S3v(vaes_vv_op, vaesdm_f5, E32)
+    // The AES round instructions use [19:15] as funct5, not as vs1.
+    // Their operands are vs2 and the old destination (Src3Vp).
+    val vaesef = DvSvlS2vS3v(vaes_vv_op, vaesef_f5, E32)
+    val vaesem = DvSvlS2vS3v(vaes_vv_op, vaesem_f5, E32)
+    val vaesdf = DvSvlS2vS3v(vaes_vv_op, vaesdf_f5, E32)
+    val vaesdm = DvSvlS2vS3v(vaes_vv_op, vaesdm_f5, E32)
     val vaeskf1 = DvSvlS2vS1(vaeskf1_op, unused_f5, E32)
     val vaeskf2 = DvSvlS2vS1S3v(vaeskf2_op, unused_f5, E32)
-    val vaesz = DvSvlS2vS1(vaesz_op, vaesz_f5, E32)
+    val vaesz = DvSvlS2vS3v(vaesz_op, vaesz_f5, E32)
 
     override def getLat(opcode: Opcode): Int = 2
 
