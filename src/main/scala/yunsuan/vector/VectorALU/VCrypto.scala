@@ -66,9 +66,6 @@ class VCrypto extends Module {
   val isAesZero_d2 = ShiftRegister(Mux(io.in.valid, isAesZero, false.B), 2)
   val aesResult_d2 = Mux(isAesZero_d2, aesZeroResult_d2, aes.out.bits.vd)
 
-  val vclmul_d1 = RegEnable(result, io.in.valid)
-  val vclmul_d2 = RegEnable(vclmul_d1, RegNext(io.in.valid, false.B))
-
   val isVclmul_d2 = ShiftRegister(Mux(io.in.valid, isVclmul, false.B), 2)
   val isAes_d2 = ShiftRegister(Mux(io.in.valid, isAes, false.B), 2)
   val valid_d2 = ShiftRegister(io.in.valid, 2)
