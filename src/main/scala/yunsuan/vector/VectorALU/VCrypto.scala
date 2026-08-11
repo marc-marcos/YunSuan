@@ -6,6 +6,7 @@ import chisel3.util._
 import yunsuan.vector.v2.Crypto.VClmul
 import yunsuan.vector.v2.Crypto.VAes
 import yunsuan.vector.v2.Crypto.VGHash
+import yunsuan.vector.v2.Crypto.VSm
 
 class VCrypto extends Module {
   val io = IO(new Bundle {
@@ -22,8 +23,11 @@ class VCrypto extends Module {
   val isAesEm = io.in.bits.opcode.isVaesem
   val isAesKf1 = io.in.bits.opcode.isVaeskf1
   val isAesKf2 = io.in.bits.opcode.isVaeskf2
+  val isSm4k = io.in.bits.opcode.isVsm4k
+  val isSm4r = io.in.bits.opcode.isVsm4r
   val isAes = isAesZero || isAesDf || isAesDm || isAesEf || isAesEm || isAesKf1 || isAesKf2
   val isGHash = io.in.bits.opcode.isVghsh || io.in.bits.opcode.isVgmul
+  val isSm = isSm4k || isSm4r
 
   val hi_hi = Wire(UInt(64.W))
   val hi_lo = Wire(UInt(64.W))
@@ -80,13 +84,24 @@ class VCrypto extends Module {
   val isVclmul_d2 = ShiftRegister(Mux(io.in.valid, isVclmul, false.B), 2)
   val isAes_d2 = ShiftRegister(Mux(io.in.valid, isAes, false.B), 2)
   val isGhash_d2 = ShiftRegister(Mux(io.in.valid, isGHash, false.B), 2)
+  val isSm_d2 = ShiftRegister(Mux(io.in.valid, isSm, false.B), 2)
   val valid_d2 = ShiftRegister(io.in.valid, 2)
 
+  // Zvksed vsm4k/vsm4r
+
+  val sm = Module(new VSm)
+  sm.in.valid := io.in.valid
+  sm.in.bits.op.round := isSm4r
+  sm.in.bits.op.keyexpansion := isSm4k
+  sm.in.bits.vs3 := io.in.bits.old_vd
+  sm.in.bits.vs2 := io.in.bits.vs2
+  sm.in.bits.uimm := io.in.bits.uimm
 
   io.out.bits.vd    := MuxCase(0.U(128.W), Seq(
                                  isAes_d2 -> aesResult_d2,
                                  isVclmul_d2 -> vclmul_d2,
-                                 isGhash_d2 -> ghash.out.bits.vd
+                                 isGhash_d2 -> ghash.out.bits.vd,
+                                 isSm_d2 -> sm.out.bits.vd
   ))
 
   io.out.bits.vxsat := false.B
@@ -106,6 +121,8 @@ object VCrypto {
     val vaeskf2 = 8.U(4.W)
     val vghsh   = 9.U(4.W)
     val vgmul   = 10.U(4.W)
+    val vsm4k   = 11.U(4.W)
+    val vsm4r   = 12.U(4.W)
   }
 
   class Opcode extends Bundle {
@@ -122,6 +139,8 @@ object VCrypto {
     def isVaesz: Bool = op === Opcode.vaesz
     def isVghsh: Bool = op === Opcode.vghsh
     def isVgmul: Bool = op === Opcode.vgmul
+    def isVsm4k: Bool = op === Opcode.vsm4k
+    def isVsm4r: Bool = op === Opcode.vsm4r
   }
 
   class In extends Bundle {
