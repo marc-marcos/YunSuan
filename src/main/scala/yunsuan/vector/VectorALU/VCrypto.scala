@@ -34,6 +34,9 @@ class VCrypto extends Module {
   val lo_hi = Wire(UInt(64.W))
   val lo_lo = Wire(UInt(64.W))
 
+  val valid_d2 = ShiftRegister(io.in.valid, 2)
+  val valid_d3 = ShiftRegister(io.in.valid, 3)
+
   // Zvbc vclmul/vclmulh
 
   val hi = Module(new VClmul)
@@ -52,6 +55,7 @@ class VCrypto extends Module {
 
   val vclmul_d1 = RegEnable(result, io.in.valid)
   val vclmul_d2 = RegEnable(vclmul_d1, RegNext(io.in.valid, false.B))
+  val vclmul_d3 = RegEnable(vclmul_d2, valid_d2)
 
   val aesZeroResult = io.in.bits.old_vd ^ io.in.bits.vs2
   val aesZeroResult_d1 = RegEnable(aesZeroResult, io.in.valid)
@@ -71,6 +75,7 @@ class VCrypto extends Module {
 
   val isAesZero_d2 = ShiftRegister(Mux(io.in.valid, isAesZero, false.B), 2)
   val aesResult_d2 = Mux(isAesZero_d2, aesZeroResult_d2, aes.out.bits.vd)
+  val aesResult_d3 = RegEnable(aesResult_d2, valid_d2)
 
   // GHash
 
@@ -81,11 +86,13 @@ class VCrypto extends Module {
   ghash.in.bits.x := Mux(io.in.bits.opcode.isVghsh, io.in.bits.vs1, 0.U(128.W))
   ghash.in.bits.h := io.in.bits.vs2
 
-  val isVclmul_d2 = ShiftRegister(Mux(io.in.valid, isVclmul, false.B), 2)
-  val isAes_d2 = ShiftRegister(Mux(io.in.valid, isAes, false.B), 2)
-  val isGhash_d2 = ShiftRegister(Mux(io.in.valid, isGHash, false.B), 2)
-  val isSm_d2 = ShiftRegister(Mux(io.in.valid, isSm, false.B), 2)
-  val valid_d2 = ShiftRegister(io.in.valid, 2)
+  val ghashResult_d3 = RegEnable(ghash.out.bits.vd, valid_d2)
+
+  val isVclmul_d3 = ShiftRegister(Mux(io.in.valid, isVclmul, false.B), 3)
+  val isAes_d3 = ShiftRegister(Mux(io.in.valid, isAes, false.B), 3)
+  val isGhash_d3 = ShiftRegister(Mux(io.in.valid, isGHash, false.B), 3)
+  val isSm_d3 = ShiftRegister(Mux(io.in.valid, isSm, false.B), 3)
+
 
   // Zvksed vsm4k/vsm4r
 
@@ -97,15 +104,17 @@ class VCrypto extends Module {
   sm.in.bits.vs2 := io.in.bits.vs2
   sm.in.bits.uimm := io.in.bits.uimm
 
+  val smResult_d3 = RegEnable(sm.out.bits.vd, valid_d2)
+
   io.out.bits.vd    := MuxCase(0.U(128.W), Seq(
-                                 isAes_d2 -> aesResult_d2,
-                                 isVclmul_d2 -> vclmul_d2,
-                                 isGhash_d2 -> ghash.out.bits.vd,
-                                 isSm_d2 -> sm.out.bits.vd
+                                 isAes_d3 -> aesResult_d3,
+                                 isVclmul_d3 -> vclmul_d3,
+                                 isGhash_d3 -> ghashResult_d3,
+                                 isSm_d3 -> smResult_d3
   ))
 
   io.out.bits.vxsat := false.B
-  io.out.valid      := valid_d2
+  io.out.valid      := valid_d3
 }
 
 object VCrypto {
