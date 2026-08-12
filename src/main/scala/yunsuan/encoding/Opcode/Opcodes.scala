@@ -2031,7 +2031,7 @@ object Opcodes {
     val vghsh = DvSvlS2vS1S3v(vghsh_op, unused_f5, E32)
     val vgmul = DvSvlS2vS3v(vaes_vv_op, vgmul_f5, E32)
     val vsm4r = DvSvlS2vS3v(vsm4r_op, vsm4r_f5, E32)
-    val vsm4k = DvSvlS2v(vsm4k_op, unused_f5, E32)
+    val vsm4k = DvSvlS2vS1(vsm4k_op, unused_f5, E32)
 
     override def getLat(opcode: Opcode): Int = 2
 
