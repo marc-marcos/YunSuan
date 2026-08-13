@@ -285,17 +285,79 @@ package object Utils {
       Cat(in.splitToVec(num = 4, w = 8).map(sm4SubBox).reverse)
     }
 
+    // Algebraic SM4 S-box: SM4_Sbox(x) = M_out * (M_in * x ^ C_in)^-1 ^ C_out,
+    // the inverse computed in the tower field GF((2^4)^2) = GF(2^4)[y]/(y^2+y+lam),
+    // GF(2^4) with poly x^4+x+1 (0x13). Constants derived from the AESENCLAST
+    // decomposition; equivalence vs sm4_sbox_table is asserted at elaboration.
+    private val sm4Gf4Lam = 0xD
+    private val sm4MIn  = Seq(0x42, 0x08, 0x96, 0x87, 0x99, 0x6D, 0x2B, 0x02)
+    private val sm4CIn  = 0x01
+    private val sm4MOut = Seq(0xAB, 0x2A, 0xA1, 0x50, 0x8A, 0x26, 0x14, 0xB0)
+    private val sm4COut = 0xD3
+
+    private val gf4InvTable = VecInit(Seq(0, 1, 9, 14, 13, 11, 7, 6, 15, 2, 12, 5, 10, 4, 3, 8).map(_.U(4.W)))
+
+    // y = M*x ^ c over GF(2)^8; M as 8 row-bytes (row i = input mask of output bit i)
+    private def affine8(m: Seq[Int], c: Int, x: UInt): UInt = {
+      require(x.getWidth == 8)
+      Cat((7 to 0 by -1).map { i =>
+        val acc = (0 until 8).filter(j => ((m(i) >> j) & 1) == 1).map(j => x(j)).foldLeft(false.B)(_ ^ _)
+        acc ^ ((c >> i) & 1).B
+      })
+    }
+
+    // GF(2^4) multiply, poly x^4+x+1
+    private def gf4Mul(a: UInt, b: UInt): UInt = {
+      require(a.getWidth == 4 && b.getWidth == 4)
+      val a3 = a(3); val a2 = a(2); val a1 = a(1); val a0 = a(0)
+      val b3 = b(3); val b2 = b(2); val b1 = b(1); val b0 = b(0)
+      val p0 = (a0 & b0) ^ (a1 & b3) ^ (a2 & b2) ^ (a3 & b1)
+      val p1 = (a0 & b1) ^ (a1 & b0) ^ (a1 & b3) ^ (a2 & b2) ^ (a3 & b1) ^ (a2 & b3) ^ (a3 & b2)
+      val p2 = (a0 & b2) ^ (a1 & b1) ^ (a2 & b0) ^ (a2 & b3) ^ (a3 & b2) ^ (a3 & b3)
+      val p3 = (a0 & b3) ^ (a1 & b2) ^ (a2 & b1) ^ (a3 & b0) ^ (a3 & b3)
+      Cat(p3, p2, p1, p0)
+    }
+
+    // GF(2^4) squaring (linear over GF(2)^4)
+    private def gf4Square(a: UInt): UInt = {
+      require(a.getWidth == 4)
+      Cat(a(3), a(3) ^ a(1), a(2), a(2) ^ a(0))
+    }
+
+    // Inverse in GF((2^4)^2): u = a1*y + a0, y^2 = y + lam
+    // u^-1 = (a1*T^-1)*y + (a0^a1)*T^-1, T = a0^2 ^ a0*a1 ^ lam*a1^2
+    private def gfInv8(u: UInt): UInt = {
+      require(u.getWidth == 8)
+      val a1 = u(7, 4)
+      val a0 = u(3, 0)
+      val t = gf4Square(a0) ^ gf4Mul(a0, a1) ^ gf4Mul(gf4Square(a1), sm4Gf4Lam.U(4.W))
+      val tInv = gf4InvTable(t)
+      Cat(gf4Mul(a1, tInv), gf4Mul(a0 ^ a1, tInv))
+    }
+
     def sm4SubBox(in: UInt): UInt = {
       require(in.getWidth == 8)
-      sm4_sbox_table(in)
+      affine8(sm4MOut, sm4COut, gfInv8(affine8(sm4MIn, sm4CIn, in)))
+    }
+
+    // SM4 round linear layer: L(S) = S ^ S<<<2 ^ S<<<10 ^ S<<<18 ^ S<<<24
+    def sm4Linear(s: UInt): UInt = {
+      require(s.getWidth == 32)
+      s ^ rol32(s, 2.U) ^ rol32(s, 10.U) ^ rol32(s, 18.U) ^ rol32(s, 24.U)
     }
 
     def sm4Round(x: UInt, s: UInt): UInt = {
-      x ^ (s ^ rol32(s, 2.U) ^ rol32(s, 10.U) ^ rol32(s, 18.U) ^ rol32(s, 24.U))
+      x ^ sm4Linear(s)
+    }
+
+    // SM4 key-expansion linear layer: L'(S) = S ^ S<<<13 ^ S<<<23
+    def sm4KeyLinear(s: UInt): UInt = {
+      require(s.getWidth == 32)
+      s ^ rol32(s, 13.U) ^ rol32(s, 23.U)
     }
 
     def sm4RoundKey(x: UInt, s: UInt): UInt = {
-      x ^ (s ^ rol32(s, 13.U) ^ rol32(s, 23.U))
+      x ^ sm4KeyLinear(s)
     }
 
     def ck(in: UInt): UInt = {
@@ -333,6 +395,39 @@ package object Utils {
       /* E0 */ 0x89, 0x69, 0x97, 0x4A, 0x0C, 0x96, 0x77, 0x7E, 0x65, 0xB9, 0xF1, 0x09, 0xC5, 0x6E, 0xC6, 0x84,
       /* F0 */ 0x18, 0xF0, 0x7D, 0xEC, 0x3A, 0xDC, 0x4D, 0x20, 0x79, 0xEE, 0x5F, 0x3E, 0xD7, 0xCB, 0x39, 0x48,
     ).map(_.U(8.W)))
+
+    // Elaboration-time proof: algebraic S-box == reference table on all 256 inputs.
+    private def gf4MulRef(a: Int, b: Int): Int = {
+      val a3 = (a >> 3) & 1; val a2 = (a >> 2) & 1; val a1 = (a >> 1) & 1; val a0 = a & 1
+      val b3 = (b >> 3) & 1; val b2 = (b >> 2) & 1; val b1 = (b >> 1) & 1; val b0 = b & 1
+      val p0 = (a0 & b0) ^ (a1 & b3) ^ (a2 & b2) ^ (a3 & b1)
+      val p1 = (a0 & b1) ^ (a1 & b0) ^ (a1 & b3) ^ (a2 & b2) ^ (a3 & b1) ^ (a2 & b3) ^ (a3 & b2)
+      val p2 = (a0 & b2) ^ (a1 & b1) ^ (a2 & b0) ^ (a2 & b3) ^ (a3 & b2) ^ (a3 & b3)
+      val p3 = (a0 & b3) ^ (a1 & b2) ^ (a2 & b1) ^ (a3 & b0) ^ (a3 & b3)
+      p0 | (p1 << 1) | (p2 << 2) | (p3 << 3)
+    }
+    private def gf4SquareRef(a: Int): Int = {
+      val a0 = a & 1; val a1 = (a >> 1) & 1; val a2 = (a >> 2) & 1; val a3 = (a >> 3) & 1
+      (a0 ^ a2) | (a2 << 1) | ((a1 ^ a3) << 2) | (a3 << 3)
+    }
+    private val gf4InvTableRef = Seq(0, 1, 9, 14, 13, 11, 7, 6, 15, 2, 12, 5, 10, 4, 3, 8)
+    private def gfInv8Ref(u: Int): Int = {
+      val a1 = (u >> 4) & 0xF; val a0 = u & 0xF
+      val t = gf4SquareRef(a0) ^ gf4MulRef(a0, a1) ^ gf4MulRef(gf4SquareRef(a1), sm4Gf4Lam)
+      val tInv = gf4InvTableRef(t)
+      (gf4MulRef(a1, tInv) << 4) | gf4MulRef(a0 ^ a1, tInv)
+    }
+    private def affine8Ref(m: Seq[Int], c: Int, x: Int): Int = {
+      (0 until 8).foldLeft(0) { (acc, i) =>
+        val p = (0 until 8).filter(j => ((m(i) >> j) & 1) == 1).foldLeft(0)((a, j) => a ^ ((x >> j) & 1))
+        acc | ((p ^ ((c >> i) & 1)) << i)
+      }
+    }
+    private def sm4SubBoxRef(x: Int): Int = {
+      affine8Ref(sm4MOut, sm4COut, gfInv8Ref(affine8Ref(sm4MIn, sm4CIn, x)))
+    }
+    require((0 until 256).forall(i => sm4SubBoxRef(i) == sm4_sbox_table(i).litValue.toInt),
+      "algebraic SM4 S-box mismatch vs reference table")
 
   }
 }
