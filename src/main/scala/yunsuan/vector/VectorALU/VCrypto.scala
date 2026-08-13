@@ -36,6 +36,7 @@ class VCrypto extends Module {
 
   val valid_d2 = ShiftRegister(io.in.valid, 2)
   val valid_d3 = ShiftRegister(io.in.valid, 3)
+  val valid_d4 = ShiftRegister(io.in.valid, 4)
 
   // Zvbc vclmul/vclmulh
 
@@ -56,10 +57,12 @@ class VCrypto extends Module {
   val vclmul_d1 = RegEnable(result, io.in.valid)
   val vclmul_d2 = RegEnable(vclmul_d1, RegNext(io.in.valid, false.B))
   val vclmul_d3 = RegEnable(vclmul_d2, valid_d2)
+  val vclmul_d4 = RegEnable(vclmul_d3, valid_d3)
 
   val aesZeroResult = io.in.bits.old_vd ^ io.in.bits.vs2
   val aesZeroResult_d1 = RegEnable(aesZeroResult, io.in.valid)
   val aesZeroResult_d2 = RegEnable(aesZeroResult_d1, RegNext(io.in.valid, false.B))
+  val aesZeroResult_d3 = RegEnable(aesZeroResult_d2, RegNext(RegNext(io.in.valid, false.B)))
 
   val aes = Module(new VAes)
   aes.in.valid := io.in.valid
@@ -76,6 +79,7 @@ class VCrypto extends Module {
   val isAesZero_d2 = ShiftRegister(Mux(io.in.valid, isAesZero, false.B), 2)
   val aesResult_d2 = Mux(isAesZero_d2, aesZeroResult_d2, aes.out.bits.vd)
   val aesResult_d3 = RegEnable(aesResult_d2, valid_d2)
+  val aesResult_d4 = RegEnable(aesResult_d3, valid_d3)
 
   // GHash
 
@@ -87,12 +91,12 @@ class VCrypto extends Module {
   ghash.in.bits.h := io.in.bits.vs2
 
   val ghashResult_d3 = RegEnable(ghash.out.bits.vd, valid_d2)
+  val ghashResult_d4 = RegEnable(ghashResult_d3, valid_d3)
 
-  val isVclmul_d3 = ShiftRegister(Mux(io.in.valid, isVclmul, false.B), 3)
-  val isAes_d3 = ShiftRegister(Mux(io.in.valid, isAes, false.B), 3)
-  val isGhash_d3 = ShiftRegister(Mux(io.in.valid, isGHash, false.B), 3)
-  val isSm_d3 = ShiftRegister(Mux(io.in.valid, isSm, false.B), 3)
-
+  val isVclmul_d4 = ShiftRegister(Mux(io.in.valid, isVclmul, false.B), 4)
+  val isAes_d4 = ShiftRegister(Mux(io.in.valid, isAes, false.B), 4)
+  val isGhash_d4 = ShiftRegister(Mux(io.in.valid, isGHash, false.B), 4)
+  val isSm_d4 = ShiftRegister(Mux(io.in.valid, isSm, false.B), 4)
 
   // Zvksed vsm4k/vsm4r
 
@@ -104,17 +108,15 @@ class VCrypto extends Module {
   sm.in.bits.vs2 := io.in.bits.vs2
   sm.in.bits.uimm := io.in.bits.uimm
 
-  val smResult_d3 = RegEnable(sm.out.bits.vd, valid_d2)
-
   io.out.bits.vd    := MuxCase(0.U(128.W), Seq(
-                                 isAes_d3 -> aesResult_d3,
-                                 isVclmul_d3 -> vclmul_d3,
-                                 isGhash_d3 -> ghashResult_d3,
-                                 isSm_d3 -> smResult_d3
+                                 isAes_d4 -> aesResult_d4,
+                                 isVclmul_d4 -> vclmul_d4,
+                                 isGhash_d4 -> ghashResult_d4,
+                                 isSm_d4 -> sm.out.bits.vd
   ))
 
   io.out.bits.vxsat := false.B
-  io.out.valid      := valid_d3
+  io.out.valid      := valid_d4
 }
 
 object VCrypto {

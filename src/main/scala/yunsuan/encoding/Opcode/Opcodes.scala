@@ -2033,7 +2033,7 @@ object Opcodes {
     val vsm4r = DvSvlS2vS3v(vsm4r_op, vsm4r_f5, E32)
     val vsm4k = DvSvlS2vS1(vsm4k_op, unused_f5, E32)
 
-    override def getLat(opcode: Opcode): Int = 3
+    override def getLat(opcode: Opcode): Int = 4
 
     def isLegal(implicit op: UInt): Bool = op.isOneOf(this.allBitPats)
   }
