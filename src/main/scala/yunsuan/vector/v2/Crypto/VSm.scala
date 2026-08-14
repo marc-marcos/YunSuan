@@ -25,52 +25,48 @@ class VSm extends Module {
   val x1 = x(63, 32)
   val x0 = x(31, 0)
 
-  // The four SM4 rounds are split into four pipeline stages, one round per
-  // stage.  The first stage consumes the input accepted in this cycle and
-  // the fourth stage produces the result.
-
   val B0 = x1 ^ x2 ^ x3 ^ rk0
   val S0 = sm4SubWord(B0)
   val x4 = sm4Round(x0, S0)
 
-  val roundX1Reg = RegEnable(x1, in.valid)
-  val roundX2Reg = RegEnable(x2, in.valid)
-  val roundX3Reg = RegEnable(x3, in.valid)
-  val roundX4Reg = RegEnable(x4, in.valid)
-  val roundRk1Reg = RegEnable(rk1, in.valid)
-  val roundRk2Reg = RegEnable(rk2, in.valid)
-  val roundRk3Reg = RegEnable(rk3, in.valid)
-  val roundValid = RegNext(in.valid)
+  val s1_x1 = RegEnable(x1, in.valid)
+  val s1_x2 = RegEnable(x2, in.valid)
+  val s1_x3 = RegEnable(x3, in.valid)
+  val s1_x4 = RegEnable(x4, in.valid)
+  val s1_rk1 = RegEnable(rk1, in.valid)
+  val s1_rk2 = RegEnable(rk2, in.valid)
+  val s1_rk3 = RegEnable(rk3, in.valid)
+  val s1_valid = RegNext(in.valid)
 
-  val B1 = roundX2Reg ^ roundX3Reg ^ roundX4Reg ^ roundRk1Reg
+  val B1 = s1_x2 ^ s1_x3 ^ s1_x4 ^ s1_rk1
   val S1 = sm4SubWord(B1)
-  val x5 = sm4Round(roundX1Reg, S1)
+  val x5 = sm4Round(s1_x1, S1)
 
-  val round2X2Reg = RegEnable(roundX2Reg, roundValid)
-  val round2X3Reg = RegEnable(roundX3Reg, roundValid)
-  val round2X4Reg = RegEnable(roundX4Reg, roundValid)
-  val round2X5Reg = RegEnable(x5, roundValid)
-  val round2Rk2Reg = RegEnable(roundRk2Reg, roundValid)
-  val round2Rk3Reg = RegEnable(roundRk3Reg, roundValid)
-  val round2Valid = RegNext(roundValid)
+  val s2_x2 = RegEnable(s1_x2, s1_valid)
+  val s2_x3 = RegEnable(s1_x3, s1_valid)
+  val s2_x4 = RegEnable(s1_x4, s1_valid)
+  val s2_x5 = RegEnable(x5, s1_valid)
+  val s2_rk2 = RegEnable(s1_rk2, s1_valid)
+  val s2_rk3 = RegEnable(s1_rk3, s1_valid)
+  val s2_valid = RegNext(s1_valid)
 
-  val B2 = round2X3Reg ^ round2X4Reg ^ round2X5Reg ^ round2Rk2Reg
+  val B2 = s2_x3 ^ s2_x4 ^ s2_x5 ^ s2_rk2
   val S2 = sm4SubWord(B2)
-  val x6 = sm4Round(round2X2Reg, S2)
+  val x6 = sm4Round(s2_x2, S2)
 
-  val round3X3Reg = RegEnable(round2X3Reg, round2Valid)
-  val round3X4Reg = RegEnable(round2X4Reg, round2Valid)
-  val round3X5Reg = RegEnable(round2X5Reg, round2Valid)
-  val round3X6Reg = RegEnable(x6, round2Valid)
-  val round3Rk2Reg = RegEnable(round2Rk2Reg, round2Valid)
-  val round3Rk3Reg = RegEnable(round2Rk3Reg, round2Valid)
-  val round3Valid = RegNext(round2Valid)
+  val s3_x3 = RegEnable(s2_x3, s2_valid)
+  val s3_x4 = RegEnable(s2_x4, s2_valid)
+  val s3_x5 = RegEnable(s2_x5, s2_valid)
+  val s3_x6 = RegEnable(x6, s2_valid)
+  val s3_rk2 = RegEnable(s2_rk2, s2_valid)
+  val s3_rk3 = RegEnable(s2_rk3, s2_valid)
+  val s3_valid = RegNext(s2_valid)
 
-  val B3 = round3X4Reg ^ round3X5Reg ^ round3X6Reg ^ round3Rk3Reg
+  val B3 = s3_x4 ^ s3_x5 ^ s3_x6 ^ s3_rk3
   val S3 = sm4SubWord(B3)
-  val x7 = sm4Round(round3X3Reg, S3)
+  val x7 = sm4Round(s3_x3, S3)
 
-  val roundResult = Cat(x7, round3X6Reg, round3X5Reg, round3X4Reg)
+  val roundResult = Cat(x7, s3_x6, s3_x5, s3_x4)
 
   // vsm4k
 
@@ -78,45 +74,46 @@ class VSm extends Module {
   val S0k = sm4SubWord(B0k)
   val rk4 = sm4RoundKey(rk0, S0k)
 
-  val roundRk4Reg = RegEnable(rk4, in.valid)
+  val s1_rk4 = RegEnable(rk4, in.valid)
   val roundUimmReg = RegEnable(uimm, in.valid)
 
-  val B1k = roundRk2Reg ^ roundRk3Reg ^ roundRk4Reg ^ ck(4.U*roundUimmReg+1.U)
+  val B1k = s1_rk2 ^ s1_rk3 ^ s1_rk4 ^ ck(4.U*roundUimmReg+1.U)
   val S1k = sm4SubWord(B1k)
-  val rk5 = sm4RoundKey(roundRk1Reg, S1k)
+  val rk5 = sm4RoundKey(s1_rk1, S1k)
 
-  val round2Rk4Reg = RegEnable(roundRk4Reg, roundValid)
-  val round2Rk5Reg = RegEnable(rk5, roundValid)
-  val round2UimmReg = RegEnable(roundUimmReg, roundValid)
+  val s2_rk4 = RegEnable(s1_rk4, s1_valid)
+  val s2_rk5 = RegEnable(rk5, s1_valid)
+  val round2UimmReg = RegEnable(roundUimmReg, s1_valid)
 
-  val B2k = round2Rk3Reg ^ round2Rk4Reg ^ round2Rk5Reg ^ ck(4.U*round2UimmReg+2.U)
+  val B2k = s2_rk3 ^ s2_rk4 ^ s2_rk5 ^ ck(4.U*round2UimmReg+2.U)
   val S2k = sm4SubWord(B2k)
-  val rk6 = sm4RoundKey(round2Rk2Reg, S2k)
+  val rk6 = sm4RoundKey(s2_rk2, S2k)
 
-  val round3Rk4Reg = RegEnable(round2Rk4Reg, round2Valid)
-  val round3Rk5Reg = RegEnable(round2Rk5Reg, round2Valid)
-  val round3Rk6Reg = RegEnable(rk6, round2Valid)
-  val round3UimmReg = RegEnable(round2UimmReg, round2Valid)
+  val s3_rk4 = RegEnable(s2_rk4, s2_valid)
+  val s3_rk5 = RegEnable(s2_rk5, s2_valid)
+  val s3_rk6 = RegEnable(rk6, s2_valid)
+  val round3UimmReg = RegEnable(round2UimmReg, s2_valid)
 
-  val B3k = round3Rk4Reg ^ round3Rk5Reg ^ round3Rk6Reg ^ ck(4.U*round3UimmReg+3.U)
+  val B3k = s3_rk4 ^ s3_rk5 ^ s3_rk6 ^ ck(4.U*round3UimmReg+3.U)
   val S3k = sm4SubWord(B3k)
-  val rk7 = sm4RoundKey(round3Rk3Reg, S3k)
+  val rk7 = sm4RoundKey(s3_rk4, S3k)
 
-  val expansionResult = Cat(rk7, round3Rk6Reg, round3Rk5Reg, round3Rk4Reg)
+  val expansionResult = Cat(rk7, s3_rk6, s3_rk5, s3_rk4)
 
   val stage1Valid = RegNext(in.valid, false.B)
   val stage2Valid = RegNext(stage1Valid, false.B)
   val stage3Valid = RegNext(stage2Valid, false.B)
-  val opReg = RegEnable(op, in.valid)
-  val opReg2 = RegEnable(opReg, stage1Valid)
-  val opReg3 = RegEnable(opReg2, stage2Valid)
+  val s1_op = RegEnable(op, in.valid)
+  val s2_op = RegEnable(s1_op, s1_valid)
+  val s3_op = RegEnable(s2_op, s2_valid)
+
   val resultReg = RegEnable(Mux1H(Seq(
-    opReg3.round -> roundResult,
-    opReg3.keyexpansion -> expansionResult
-  )), stage3Valid)
+    s3_op.round -> roundResult,
+    s3_op.keyexpansion -> expansionResult
+  )), s3_valid)
 
   out.bits.vd := resultReg
-  out.valid := RegNext(stage3Valid, false.B)
+  out.valid := RegNext(s3_valid, false.B)
 }
 
 object VSm {
