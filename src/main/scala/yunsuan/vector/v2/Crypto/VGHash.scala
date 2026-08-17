@@ -35,19 +35,19 @@ class VGHash extends Module {
   val (productStage1, multiplicandStage1) =
     multiplyRounds(multiplier, 0.U(DLEN.W), multiplicand, firstBit = 0, rounds = 64)
 
-  val multiplierReg = RegEnable(multiplier, in.valid)
-  val productStage1Reg = RegEnable(productStage1, in.valid)
-  val multiplicandStage1Reg = RegEnable(multiplicandStage1, in.valid)
-  val stage1Valid = RegNext(in.valid, false.B)
+  val s1_multiplier = RegEnable(multiplier, in.valid)
+  val s1_product = RegEnable(productStage1, in.valid)
+  val s1_multiplicand = RegEnable(multiplicandStage1, in.valid)
+  val s1_valid = RegNext(in.valid)
 
-  val (productStage2, _) =
-    multiplyRounds(multiplierReg, productStage1Reg, multiplicandStage1Reg, firstBit = 64, rounds = 64)
+  val (s2_productStage2, _) =
+    multiplyRounds(s1_multiplier, s1_product, s1_multiplicand, firstBit = 64, rounds = 64)
 
-  val resultReg = RegEnable(reverseBitsInBytes(productStage2), stage1Valid)
-  val stage2Valid = RegNext(stage1Valid, false.B)
+  val s2_result = RegEnable(reverseBitsInBytes(productStage2), s1_valid)
+  val s2_valid = RegNext(s1_valid)
 
-  out.bits.vd := resultReg
-  out.valid := stage2Valid
+  out.bits.vd := s2_result
+  out.valid := s2_valid
 }
 
 object VGHash {

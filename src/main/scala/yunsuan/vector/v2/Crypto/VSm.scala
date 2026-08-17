@@ -36,7 +36,7 @@ class VSm extends Module {
   val s1_rk1 = RegEnable(rk1, in.valid)
   val s1_rk2 = RegEnable(rk2, in.valid)
   val s1_rk3 = RegEnable(rk3, in.valid)
-  val s1_valid = RegNext(in.valid)
+  val s1_valid = RegNext(in.valid, false.B)
 
   val B1 = s1_x2 ^ s1_x3 ^ s1_x4 ^ s1_rk1
   val S1 = sm4SubWord(B1)
@@ -48,7 +48,7 @@ class VSm extends Module {
   val s2_x5 = RegEnable(x5, s1_valid)
   val s2_rk2 = RegEnable(s1_rk2, s1_valid)
   val s2_rk3 = RegEnable(s1_rk3, s1_valid)
-  val s2_valid = RegNext(s1_valid)
+  val s2_valid = RegNext(s1_valid, false.B)
 
   val B2 = s2_x3 ^ s2_x4 ^ s2_x5 ^ s2_rk2
   val S2 = sm4SubWord(B2)
@@ -60,7 +60,7 @@ class VSm extends Module {
   val s3_x6 = RegEnable(x6, s2_valid)
   val s3_rk2 = RegEnable(s2_rk2, s2_valid)
   val s3_rk3 = RegEnable(s2_rk3, s2_valid)
-  val s3_valid = RegNext(s2_valid)
+  val s3_valid = RegNext(s2_valid, false.B)
 
   val B3 = s3_x4 ^ s3_x5 ^ s3_x6 ^ s3_rk3
   val S3 = sm4SubWord(B3)
@@ -96,13 +96,10 @@ class VSm extends Module {
 
   val B3k = s3_rk4 ^ s3_rk5 ^ s3_rk6 ^ ck(4.U*round3UimmReg+3.U)
   val S3k = sm4SubWord(B3k)
-  val rk7 = sm4RoundKey(s3_rk4, S3k)
+  val rk7 = sm4RoundKey(s3_rk3, S3k)
 
   val expansionResult = Cat(rk7, s3_rk6, s3_rk5, s3_rk4)
 
-  val stage1Valid = RegNext(in.valid, false.B)
-  val stage2Valid = RegNext(stage1Valid, false.B)
-  val stage3Valid = RegNext(stage2Valid, false.B)
   val s1_op = RegEnable(op, in.valid)
   val s2_op = RegEnable(s1_op, s1_valid)
   val s3_op = RegEnable(s2_op, s2_valid)
