@@ -79,11 +79,6 @@ class VCrypto extends Module {
 
   /** AES */
 
-  val aesZeroResult = old_vd ^ vs2
-  val s1_aesZeroResult = RegEnable(aesZeroResult, in.valid)
-  val s2_aesZeroResult = RegEnable(s1_aesZeroResult, s1_valid)
-  val s3_aesZeroResult = RegEnable(s2_aesZeroResult, s2_valid)
-
   aes.in.valid := in.valid
   aes.in.bits.op.em := isAesEm
   aes.in.bits.op.ef := isAesEf
@@ -91,13 +86,12 @@ class VCrypto extends Module {
   aes.in.bits.op.df := isAesDf
   aes.in.bits.op.kf1 := isAesKf1
   aes.in.bits.op.kf2 := isAesKf2
+  aes.in.bits.op.zero := isAesZero
   aes.in.bits.vs3 := old_vd
   aes.in.bits.vs2 := vs2
   aes.in.bits.uimm := uimm
 
-  val s2_isAesZero = ShiftRegister(Mux(in.valid, isAesZero, false.B), 2)
-  val s2_aesResult = Mux(s2_isAesZero, s2_aesZeroResult, aes.out.bits.vd)
-  val s3_aesResult = RegEnable(s2_aesResult, s2_valid)
+  val s3_aesResult = RegEnable(aes.out.bits.vd, s2_valid)
   val s4_aesResult = RegEnable(s3_aesResult, s3_valid)
 
   /** GHash */

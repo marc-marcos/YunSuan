@@ -29,6 +29,7 @@ class VAes extends Module {
   val s1_ensr = RegEnable(ensr, in.valid)
   val s1_op = RegEnable(op, in.valid)
   val s1_rkey = RegEnable(rkey, in.valid)
+  val s1_state = RegEnable(state, in.valid)
 
 
   val enmix = mixColumns(s1_ensr)
@@ -131,6 +132,7 @@ class VAes extends Module {
   val s2_deark = RegEnable(deark, s1_valid)
   val s2_kf1 = RegEnable(kf1, s1_valid)
   val s2_kf2 = RegEnable(kf2, s1_valid)
+  val s2_zeroResult = RegEnable(s1_state ^ s1_rkey, s1_valid)
   val s2_op = RegEnable(s1_op, s1_valid)
 
   out.bits.vd := Mux1H(Seq(
@@ -138,7 +140,8 @@ class VAes extends Module {
     s2_op.dm -> s2_demix,
     s2_op.df -> s2_deark,
     s2_op.kf1 -> s2_kf1,
-    s2_op.kf2 -> s2_kf2
+    s2_op.kf2 -> s2_kf2,
+    s2_op.zero -> s2_zeroResult
   ))
   out.valid := s2_valid
 }
@@ -211,6 +214,6 @@ object VAes {
   }
 
   class Op extends Bundle {
-    val em, ef, dm, df, kf1, kf2 = Bool()
+    val em, ef, dm, df, kf1, kf2, zero = Bool()
   }
 }
