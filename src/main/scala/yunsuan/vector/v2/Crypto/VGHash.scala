@@ -40,7 +40,7 @@ class VGHash extends Module {
   val s1_multiplicand = RegEnable(multiplicandStage1, in.valid)
   val s1_valid = RegNext(in.valid)
 
-  val (s2_productStage2, _) =
+  val (productStage2, _) =
     multiplyRounds(s1_multiplier, s1_product, s1_multiplicand, firstBit = 64, rounds = 64)
 
   val s2_result = RegEnable(reverseBitsInBytes(productStage2), s1_valid)
