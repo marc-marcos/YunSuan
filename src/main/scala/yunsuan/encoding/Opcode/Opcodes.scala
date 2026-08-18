@@ -1993,6 +1993,36 @@ object Opcodes {
 
   object VSha256cOpcode extends VSha256cOpcode
 
+  trait VSha512msOpcode extends Opcodes {
+    private val sha512ms0 = bb"00"
+    private val sha512ms1 = bb"01"
+    private val sha512ms2 = bb"10"
+    private val sha512ms3 = bb"11"
+
+    val vsha512ms0 = DvSvlS2vS1S3v(sha512ms0)
+    val vsha512ms1 = DvSvlS2vS1S3v(sha512ms1)
+    val vsha512ms2 = DvSvlS2vS1S3v(sha512ms2)
+    val vsha512ms3 = DvSvlS2vS1S3v(sha512ms3)
+
+    def isLegal(implicit op: UInt): Bool = op.isOneOf(sha512ms0, sha512ms1, sha512ms2, sha512ms3)
+  }
+
+  object VSha512msOpcode extends VSha512msOpcode
+
+  trait VSha512cOpcode extends Opcodes {
+    private val sha512cl = bb"10"
+    private val sha512ch = bb"11"
+
+    val vsha512cl = DvSvlS2vS1S3v(sha512cl)
+    val vsha512ch = DvSvlS2vS1S3v(sha512ch)
+
+    def isCL(implicit op: UInt): Bool = op === sha512cl
+    def isCH(implicit op: UInt): Bool = op === sha512ch
+    def isLegal(implicit op: UInt): Bool = op.isOneOf(sha512cl, sha512ch)
+  }
+
+  object VSha512cOpcode extends VSha512cOpcode
+
   trait VCryptoOpcode extends Opcodes with DataType {
     private val vclmul_op = bb"001100"
     private val vclmulh_op = bb"001101"
