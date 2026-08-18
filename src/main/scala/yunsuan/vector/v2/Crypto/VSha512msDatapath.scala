@@ -2,6 +2,7 @@ package yunsuan.vector.v2.Crypto
 
 import chisel3._
 import chisel3.util._
+import yunsuan.vector.Common._
 
 /**
  * Stateless datapath for the 4-uop vsha512ms (SHA-512 message schedule) split.
